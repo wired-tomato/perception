@@ -16,6 +16,7 @@ data class MappedGeometry(val id: Identifier, val geometry: GeometricShape)
 
 infix fun <T: GeometricShape> T.mappedTo(id: Identifier) = MappedGeometry(id, this)
 
-infix fun <T, V> Optional<T>.ifPresentRun(f: KFunc<T, V>) {
-    if (this.isPresent) f(this.get())
+infix fun <T, V> Optional<T>.ifPresentRun(f: KFunc<T, V>): V? {
+    return if (this.isPresent) f(this.get())
+    else null
 }

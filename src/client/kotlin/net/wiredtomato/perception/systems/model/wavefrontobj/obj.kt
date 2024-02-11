@@ -122,9 +122,6 @@ class ObjMaterialLibrary private constructor() {
                 "Tr" -> {
                     currentMaterial!!.transparency = line[1].toFloat()
                 }
-                "forge_TintIndex" -> {
-                    currentMaterial!!.diffuseTintIdx = line[1].toInt()
-                }
             }
         } while ((reader.readAndSplitLine(true).also { line = it }) != null)
     }
@@ -141,7 +138,6 @@ class ObjMaterialLibrary private constructor() {
         var specularColorMap: String? = null
         var dissolve = 1f
         var transparency = 0f
-        var diffuseTintIdx = 0
 
         fun getMaterial(renderer: Renderer): RenderMaterial {
             if (!this::material.isInitialized) {

@@ -6,6 +6,7 @@ import net.wiredtomato.perception.systems.model.loading.GeometryLoader
 import net.wiredtomato.perception.systems.model.loading.MappedGeometry
 import net.wiredtomato.perception.systems.model.loading.ifPresentRun
 import net.wiredtomato.perception.systems.model.loading.mappedTo
+import net.wiredtomato.perception.systems.model.wavefrontobj.ObjMaterialLibrary
 import net.wiredtomato.perception.systems.model.wavefrontobj.ObjTokenizer
 import net.wiredtomato.perception.systems.model.wavefrontobj.loading.exceptions.ObjParseException
 import org.joml.Vector2f
@@ -23,56 +24,74 @@ object ObjLoader: GeometryLoader {
 
     override fun getLoaded() = loaded.map { (id, obj) -> obj mappedTo id }
 
-    fun loadObj(manager: ResourceManager, id: Identifier): List<MappedGeometry> {
-        manager.getResource(id) ifPresentRun {
+    fun loadObj(manager: ResourceManager, id: Identifier): GeometricObj? {
+        val mesh = manager.getResource(id) ifPresentRun {
             val data = it.open()
             val tokenizer = ObjTokenizer(data)
-            val objects = mutableMapOf<String, GeometricObj>()
-            var builder: GeometricObj.Builder? = null
-            var name: String? = null
+            val builder: GeometricObj.Builder = GeometricObj.builder()
 
             var line: List<String> = tokenizer.readAndSplitLine(true) ?: listOf()
             do {
                 if (line.isEmpty()) continue
 
                 when (line[0]) {
+                    "mtllib" -> {
+                        if (builder.mtllib() != null) continue
+
+                        val lib = line[1]
+                        if (lib.contains(":")) {
+                            builder.mtllib(loadMtl(manager, Identifier(lib)))
+                        } else builder.mtllib(loadMtl(manager, Identifier(id.namespace, "${id.path}$lib")))
+                    }
+                    "usemtl" -> {
+                        val mat = line.subList(1, line.size).reduce { a, b -> "$a $b" }
+                        val nMat = builder.mtllib()!!.materials[mat]
+                        if (nMat != builder.mesh()?.material()) {
+                            if (builder.mesh()?.material() != null && builder.mesh()?.faces()?.size == 0) {
+                                builder.mesh()!!.material(nMat!!)
+                            } else builder.newMesh(null)
+                        }
+                    }
                     "v" -> {
-                        builder!!.vertex(loadVec3(line))
+                        builder.mesh()!!.vertex(loadVec3(line))
                     }
                     "vt" -> {
-                        builder!!.uv(loadVec2(line))
+                        builder.mesh()!!.uv(loadVec2(line))
                     }
                     "vn" -> {
-                        builder!!.normal(loadVec3(line))
+                        builder.mesh()!!.normal(loadVec3(line))
                     }
                     "f" -> {
                         val indices = loadFaceIndices(line)
-                        builder!!.face(indices.first, indices.second, indices.third)
+                        builder.mesh()!!.face(indices.first, indices.second, indices.third)
                     }
                     "o", "g" -> {
-                        if (builder == null) {
-                            builder = GeometricObj.builder()
-                            name = line[1]
-                        } else {
-                            objects[name!!] = builder.build()
-                            builder = GeometricObj.builder()
-                            name = line[1]
-                        }
+                        if (builder.mesh() != null && builder.mesh()?.name() == null)
+                            builder.mesh()!!.name(line[1])
+                        else builder.newMesh(line[1])
                     }
                     "s" -> {
-                        builder!!.smoothShading(line[1].toBoolean())
+                        builder.mesh()!!.shadingGroup(line[1])
                     }
                 }
             } while (tokenizer.readAndSplitLine(true)?.also { split -> line = split } != null)
 
-            data.close()
+            tokenizer.close()
+
+            builder.build()
         }
 
-        TODO()
+        return mesh
     }
 
-    fun loadMtl(manager: ResourceManager, id: Identifier): List<MappedGeometry> {
-        TODO()
+    fun loadMtl(manager: ResourceManager, id: Identifier): ObjMaterialLibrary {
+        val library = manager.getResource(id) ifPresentRun {
+            ObjTokenizer(it.open()).use { tok ->
+                ObjMaterialLibrary(tok)
+            }
+        }
+        
+        return library!!
     }
 
     inline fun <reified T> parse(line: List<String>): T {
@@ -96,18 +115,22 @@ object ObjLoader: GeometryLoader {
     fun loadFaceIndices(line: List<String>): Triple<List<Int>, List<Int>, List<Int>> {
         val indices = line.subList(1, line.size).map { it.split("/") }
         val size = indices[0].size
-        return if (size == 1) {
-            val vertexIndices = indices[0].map { it.toInt() - 1 }
-            Triple(vertexIndices, listOf(), listOf())
-        } else if (size == 2) {
-            val vertexIndices = indices[0].map { it.toInt() - 1 }
-            val uvIndices = indices[1].map { it.toInt() - 1 }
-            Triple(vertexIndices, uvIndices, listOf())
-        } else {
-            val vertexIndices = indices[0].map { it.toInt() - 1 }
-            val uvIndices = indices[1].map { it.toInt() - 1 }
-            val normalIndices = indices[2].map { it.toInt() - 1 }
-            Triple(vertexIndices, uvIndices, normalIndices)
+        return when (size) {
+            1 -> {
+                val vertexIndices = indices[0].map { it.toInt() - 1 }
+                Triple(vertexIndices, listOf(), listOf())
+            }
+            2 -> {
+                val vertexIndices = indices[0].map { it.toInt() - 1 }
+                val uvIndices = indices[1].map { it.toInt() - 1 }
+                Triple(vertexIndices, uvIndices, listOf())
+            }
+            else -> {
+                val vertexIndices = indices[0].map { it.toInt() - 1 }
+                val uvIndices = indices[1].map { it.toInt() - 1 }
+                val normalIndices = indices[2].map { it.toInt() - 1 }
+                Triple(vertexIndices, uvIndices, normalIndices)
+            }
         }
     }
 
