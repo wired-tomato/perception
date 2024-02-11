@@ -1,0 +1,46 @@
+{
+	"schemaVersion": 1,
+	"id": "perception",
+	"version": "${version}",
+	"name": "Perception",
+	"description": "This is an example description! Tell everyone what your mod is about!",
+	"authors": [
+		"WiredTomato"
+	],
+	"contact": {
+		"homepage": "https://fabricmc.net/",
+		"sources": "https://github.com/FabricMC/fabric-example-mod"
+	},
+	"license": "MIT",
+	"icon": "assets/perception/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			{
+				"value": "net.wiredtomato.perception.Perception",
+				"adapter": "kotlin"
+			}
+		],
+		"client": [
+			{
+				"value": "net.wiredtomato.perception.client.PerceptionClient",
+				"adapter": "kotlin"
+			}
+		]
+	},
+	"accessWidener": "perception.accesswidener",
+	"mixins": [
+		"perception.mixins.json",
+		{
+			"config": "perception.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.15.3",
+		"minecraft": "~1.20.4",
+		"java": ">=17",
+		"fabric-api": "*",
+		"fabric-language-kotlin": ">=1.9.22"
+	}
+}
