@@ -10,6 +10,9 @@ import net.minecraft.util.Identifier
 import net.minecraft.util.math.MathHelper.lerp
 import net.wiredtomato.perception.systems.color.RGBA
 import net.wiredtomato.perception.systems.math.*
+import net.wiredtomato.perception.systems.math.FULL_BRIGHT
+import net.wiredtomato.perception.systems.math.midpoint
+import net.wiredtomato.perception.systems.math.screenSpaceQuadOffsets
 import net.wiredtomato.perception.systems.rendering.VFX.ScreenVertexPlacementSupplier
 import net.wiredtomato.perception.systems.rendering.shapes.Drawable
 import net.wiredtomato.perception.systems.util.KConsumer

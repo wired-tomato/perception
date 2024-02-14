@@ -25,8 +25,8 @@ class TestRenderer: PerceivedItemRenderer {
         time: Float,
         delayRender: Boolean
     ) {
-        val icoSphere = IcoSphere(Vector3f(0f, 0f, 0f), 1f, 1)
-        vfxBuilder.renderShape(consumers.getBuffer(SOLIDS_LAYER(id("solids"))), stack, icoSphere)
+        //val icoSphere = IcoSphere(Vector3f(0f, 0f, 0f), 1f, 1)
+        //vfxBuilder.renderShape(consumers.getBuffer(SOLIDS_LAYER(id("solids"))), stack, icoSphere)
     }
 
     companion object {

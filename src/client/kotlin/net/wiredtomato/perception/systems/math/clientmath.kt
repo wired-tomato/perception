@@ -3,6 +3,7 @@ package net.wiredtomato.perception.systems.math
 import com.mojang.blaze3d.systems.RenderSystem
 import net.minecraft.client.MinecraftClient
 import net.minecraft.client.util.math.MatrixStack
+import net.wiredtomato.perception.systems.math.vector.copy
 import org.joml.Vector2f
 import org.joml.Vector3f
 import org.joml.Vector4f

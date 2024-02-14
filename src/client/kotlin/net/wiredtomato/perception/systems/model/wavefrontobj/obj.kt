@@ -3,30 +3,17 @@ package net.wiredtomato.perception.systems.model.wavefrontobj
 import com.google.common.base.Charsets
 import net.fabricmc.fabric.api.renderer.v1.Renderer
 import net.fabricmc.fabric.api.renderer.v1.material.RenderMaterial
-import net.fabricmc.fabric.api.renderer.v1.mesh.MeshBuilder
-import net.minecraft.client.render.model.ModelBakeSettings
-import net.minecraft.client.render.model.json.JsonUnbakedModel
-import net.minecraft.client.resource.Material
-import net.minecraft.client.texture.Sprite
 import net.minecraft.util.Identifier
 import net.wiredtomato.perception.systems.color.RGBA
-import net.wiredtomato.perception.systems.model.UnbakedGeometryHelper
-import net.wiredtomato.perception.systems.util.KFunc
+import net.wiredtomato.perception.systems.rendering.shapes.geometry.GeometricShape
+import net.wiredtomato.perception.systems.rendering.shapes.geometry.NormalGeometricShape
+import org.joml.Vector2f
+import org.joml.Vector3f
 import java.io.BufferedReader
 import java.io.IOException
 import java.io.InputStream
 import java.io.InputStreamReader
 import java.util.*
-
-class ObjModelMesh(var mat: ObjMaterialLibrary.Material?, var smoothingGroup: String?) {
-    val facesIndices = mutableListOf<MutableList<Int>>()
-
-    fun buildMesh(owner: JsonUnbakedModel?, builder: MeshBuilder, spriteSupplier: KFunc<Material, Sprite>, settings: ModelBakeSettings) {
-        if (mat == null) return
-        val texture = spriteSupplier(UnbakedGeometryHelper.resolveDirtyMaterial(mat!!.diffuseColorMap, owner))
-        val rootTransform = owner?.rootModel?.transformations
-    }
-}
 
 class ObjTokenizer(inputStream: InputStream): AutoCloseable {
     private val lineReader = BufferedReader(InputStreamReader(inputStream, Charsets.UTF_8))
@@ -80,10 +67,10 @@ class ObjTokenizer(inputStream: InputStream): AutoCloseable {
 class ObjMaterialLibrary private constructor() {
     val materials = mutableMapOf<String, Material>()
 
-    constructor(reader: ObjTokenizer): this() {
+    constructor(tokenizer: ObjTokenizer): this() {
         var currentMaterial: Material? = null
 
-        var line: List<String>? = null
+        var line: List<String>? = tokenizer.readAndSplitLine(true)
         do {
             if (line == null) break
             when (line[0]) {
@@ -122,8 +109,11 @@ class ObjMaterialLibrary private constructor() {
                 "Tr" -> {
                     currentMaterial!!.transparency = line[1].toFloat()
                 }
+                "forge_TintIndex", "perception_TintIndex" -> {
+                    currentMaterial!!.diffuseTintIndex = line[1].toInt()
+                }
             }
-        } while ((reader.readAndSplitLine(true).also { line = it }) != null)
+        } while ((tokenizer.readAndSplitLine(true).also { line = it }) != null)
     }
 
     class Material(val name: String) {
@@ -133,6 +123,7 @@ class ObjMaterialLibrary private constructor() {
         var ambientColorMap: String? = null
         var diffuseColor = RGBA(1f, 1f, 1f, 1f)
         var diffuseColorMap: String? = null
+        var diffuseTintIndex = 0
         var specularColor = RGBA(0f, 0f, 0f, 1f)
         var specularHighlight = 0f
         var specularColorMap: String? = null
@@ -158,4 +149,28 @@ object Parsing {
             4 -> RGBA(line[1].toFloat(), line[2].toFloat(), line[3].toFloat(), 1f)
             else -> RGBA(line[1].toFloat(), line[2].toFloat(), line[3].toFloat(), line[4].toFloat())
         }
+}
+
+class ObjTri(
+    val v0: Vector3f, val v1: Vector3f, val v2: Vector3f,
+    val uv0: Vector2f, val uv1: Vector2f, val uv2: Vector2f,
+    val n0: Vector3f, val n1: Vector3f, val n2: Vector3f
+): NormalGeometricShape {
+    override fun vertices(): List<Vector3f> = listOf(v0, v1, v2)
+    override fun uvs(): List<Vector2f> = listOf(uv0, uv1, uv2)
+    override fun normals(): List<Vector3f> = listOf(n0, n1, n2)
+    override fun faces(): List<NormalGeometricShape> = listOf(this)
+    override fun isQuads(): Boolean = false
+}
+
+class ObjQuad(
+    val v0: Vector3f, val v1: Vector3f, val v2: Vector3f, val v3: Vector3f,
+    val uv0: Vector2f, val uv1: Vector2f, val uv2: Vector2f, val uv3: Vector2f,
+    val n0: Vector3f, val n1: Vector3f, val n2: Vector3f, val n3: Vector3f
+): NormalGeometricShape {
+    override fun vertices(): List<Vector3f> = listOf(v0, v1, v2, v3)
+    override fun uvs(): List<Vector2f> = listOf(uv0, uv1, uv2, uv3)
+    override fun normals(): List<Vector3f> = listOf(n0, n1, n2, n3)
+    override fun faces(): List<NormalGeometricShape> = listOf(this)
+    override fun isQuads() = true
 }

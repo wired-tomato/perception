@@ -24,7 +24,7 @@ class IcoSphere(var center: Vector3f, var radius: Float, var subdivisions: Int):
     override fun drawMode(): VertexFormat.DrawMode = VertexFormat.DrawMode.TRIANGLES
 
     companion object {
-        private val computeTrisAndCache = memoize(this::computeTris, MODEL_CACHE)
+        private val computeTrisAndCache = memoize(MODEL_CACHE, this::computeTris)
         fun computeAndCacheTris(center: Vector3f, radius: Float, subdivisions: Int) = computeTrisAndCache(center, radius, subdivisions)
 
         fun computeTris(center: Vector3f, radius: Float, subdivisions: Int): List<Triangle> {

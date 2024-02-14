@@ -1,17 +1,21 @@
 package net.wiredtomato.perception.systems.math
 
-import net.minecraft.util.math.MathHelper
-import net.wiredtomato.perception.Perception
+import net.wiredtomato.perception.systems.math.vector.copy
 import org.joml.Vector2f
 import org.joml.Vector3f
 import org.joml.Vector4f
-import java.text.DecimalFormat
 import kotlin.math.abs
-import kotlin.math.atan
 import kotlin.math.sqrt
 
 const val FULL_BRIGHT = 15728880
 const val F_PI = 3.1415927f
+
+val defaultUvCoords = listOf(
+    Vector2f(0f, 0f),
+    Vector2f(0f, 1f),
+    Vector2f(1f, 1f),
+    Vector2f(1f, 0f)
+)
 
 fun distSqr(vararg a: Float): Float {
     var d = 0.0f
@@ -50,4 +54,11 @@ fun screenSpaceQuadOffsets(start: Vector4f, end: Vector4f, width: Float): Vector
 
 fun midpoint(a: Vector4f, b: Vector4f): Vector4f {
     return Vector4f((a.x + b.x) * 0.5f, (a.y + b.y) * 0.5f, (a.z + b.z) * 0.5f, (a.w + b.w) * 0.5f)
+}
+
+fun calculateNormal(v: Vector3f, vr: Vector3f, vd: Vector3f): Vector3f =
+    (vr.copy().sub(v)).cross(vd.copy().sub(v))
+
+fun Float.approximatelyEquals(b: Float, marginOfError: Float = 1.0E-5f): Boolean {
+    return abs(b - this) < marginOfError
 }

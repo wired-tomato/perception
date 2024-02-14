@@ -1,25 +1,97 @@
 package net.wiredtomato.perception.systems.model.wavefrontobj.loading
 
+import com.google.gson.Gson
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
+import net.fabricmc.fabric.api.client.model.loading.v1.ModelLoadingPlugin
+import net.fabricmc.fabric.api.client.model.loading.v1.ModelResolver
+import net.fabricmc.fabric.api.resource.ResourceManagerHelper
+import net.minecraft.client.MinecraftClient
+import net.minecraft.client.render.model.UnbakedModel
+import net.minecraft.resource.Resource
 import net.minecraft.resource.ResourceManager
+import net.minecraft.resource.ResourceType
 import net.minecraft.util.Identifier
+import net.minecraft.util.JsonHelper
+import net.wiredtomato.perception.Perception
+import net.wiredtomato.perception.systems.cache.MODEL_CACHE
+import net.wiredtomato.perception.systems.cache.invalidateCaches
+import net.wiredtomato.perception.systems.cache.memoize
 import net.wiredtomato.perception.systems.model.loading.GeometryLoader
-import net.wiredtomato.perception.systems.model.loading.MappedGeometry
 import net.wiredtomato.perception.systems.model.loading.ifPresentRun
 import net.wiredtomato.perception.systems.model.loading.mappedTo
 import net.wiredtomato.perception.systems.model.wavefrontobj.ObjMaterialLibrary
 import net.wiredtomato.perception.systems.model.wavefrontobj.ObjTokenizer
 import net.wiredtomato.perception.systems.model.wavefrontobj.loading.exceptions.ObjParseException
+import net.wiredtomato.perception.systems.util.KConsumer
 import org.joml.Vector2f
 import org.joml.Vector3f
 import org.joml.Vector4f
 
-object ObjLoader: GeometryLoader {
+object ObjLoader: ModelLoadingPlugin, GeometryLoader {
     private val loaded = mutableMapOf<Identifier, GeometricObj>()
+    val OBJ_MARKER = Perception.id("obj").toString()
+
+    override fun onInitializeModelLoader(ctx: ModelLoadingPlugin.Context) {
+        invalidateCaches(MODEL_CACHE)
+        findModels(ctx::addModels)
+        ctx.resolveModel().register(Resolver())
+    }
+
+    fun findModels(addModel: KConsumer<Identifier>) {
+        val manager = MinecraftClient.getInstance().resourceManager
+        manager.findResources("models/misc") { id ->
+            if (id.path.endsWith(".json")) {
+                manager.getResource(id).ifPresent {
+                    if (loadJsonModel(id, it) != null) addModel(id)
+                }
+            }
+            return@findResources true
+        }
+    }
+
+    fun loadJsonModel(id: Identifier, resource: Resource): JsonObject? {
+        runCatching {
+            val json = JsonParser.parseReader(resource.openBufferedReader()).asJsonObject
+            if (id.namespace == "perception") {
+                Perception.logger.info(Gson().toJson(json) + "\n\n${json.has(OBJ_MARKER)}")
+            }
+            if (json.has(OBJ_MARKER)) return json
+        }.onFailure {
+            Perception.logger.error("Error loading obj model from models/misc: $id", it)
+        }
+
+        return null
+    }
 
     override fun loadGeometry(manager: ResourceManager, id: Identifier) {
-        val fileExt = id.path.split(".").last()
-        if (fileExt == "obj") loadObj(manager, id)
-        else loadMtl(manager, id)
+        loadObj(manager, id)
+    }
+
+    val loadUnbaked: (manager: ResourceManager, modelId: Identifier, settings: ModelSettings) -> Result<UnbakedObjModel> =
+        memoize(MODEL_CACHE) { manager, modelId, settings ->
+            runCatching {
+                val geometry = loadObj(manager, modelId) ?: return@memoize Result.failure(ObjParseException("Failed to parse model with id: $modelId"))
+                UnbakedObjModel(
+                    settings,
+                    geometry
+                )
+            }
+        }
+
+    fun tryLoadSettings(json: JsonObject): Result<ModelSettings> {
+        return runCatching {
+            Perception.logger.info("S_S")
+            val objId = Identifier(JsonHelper.getString(json, "model"))
+            ModelSettings(
+                objId,
+                JsonHelper.getBoolean(json, "automaticCulling", true),
+                JsonHelper.getBoolean(json, "shadeQuads", true),
+                JsonHelper.getBoolean(json, "flipV", true),
+                JsonHelper.getBoolean(json, "emissivrAmbient", true),
+                JsonHelper.getString(json, "mtlOverride", null)
+            )
+        }
     }
 
     override fun getLoaded() = loaded.map { (id, obj) -> obj mappedTo id }
@@ -30,9 +102,9 @@ object ObjLoader: GeometryLoader {
             val tokenizer = ObjTokenizer(data)
             val builder: GeometricObj.Builder = GeometricObj.builder()
 
-            var line: List<String> = tokenizer.readAndSplitLine(true) ?: listOf()
+            var line: List<String>? = tokenizer.readAndSplitLine(true)
             do {
-                if (line.isEmpty()) continue
+                if (line.isNullOrEmpty()) continue
 
                 when (line[0]) {
                     "mtllib" -> {
@@ -74,7 +146,7 @@ object ObjLoader: GeometryLoader {
                         builder.mesh()!!.shadingGroup(line[1])
                     }
                 }
-            } while (tokenizer.readAndSplitLine(true)?.also { split -> line = split } != null)
+            } while (tokenizer.readAndSplitLine(true).also { split -> line = split } != null)
 
             tokenizer.close()
 
@@ -90,7 +162,7 @@ object ObjLoader: GeometryLoader {
                 ObjMaterialLibrary(tok)
             }
         }
-        
+
         return library!!
     }
 
@@ -110,7 +182,8 @@ object ObjLoader: GeometryLoader {
     fun loadVec3(line: List<String>) =
         Vector3f(line[1].toFloat(), line[2].toFloat(), line[3].toFloat())
 
-    fun loadVec4(line: List<String>) {}
+    fun loadVec4(line: List<String>) =
+        Vector4f(line[1].toFloat(), line[2].toFloat(), line[3].toFloat(), line[4].toFloat())
 
     fun loadFaceIndices(line: List<String>): Triple<List<Int>, List<Int>, List<Int>> {
         val indices = line.subList(1, line.size).map { it.split("/") }
@@ -133,6 +206,29 @@ object ObjLoader: GeometryLoader {
             }
         }
     }
-
     override fun fileExtensions() = listOf("obj", "mtl")
+
+    class Resolver: ModelResolver {
+        private lateinit var currentId: Identifier
+
+        override fun resolveModel(context: ModelResolver.Context): UnbakedModel? {
+            val fid = context.id()
+            currentId = fid
+            val id = Identifier(fid.namespace, "models/${fid.path}.json")
+            val manager = MinecraftClient.getInstance().resourceManager
+            val res = manager.getResource(id).get()
+            val resource = res
+            Perception.logger.info("A_S")
+            val json = loadJsonModel(id, resource) ?: return null
+            Perception.logger.info("V_S")
+            return tryLoadSettings(json).mapCatching {
+                Perception.logger.info("Loading: $id")
+                return@mapCatching loadUnbaked(manager, Identifier(JsonHelper.getString(json, "model")), it).getOrThrow()
+            }.getOrNull()
+        }
+
+        private fun reportError(throwable: Throwable) {
+            Perception.logger.error("Error loading obj model: $currentId", throwable)
+        }
+    }
 }

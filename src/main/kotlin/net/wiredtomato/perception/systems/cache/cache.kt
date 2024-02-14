@@ -6,7 +6,8 @@ import java.util.concurrent.ConcurrentHashMap
 
 private val onInvalidateCaches = mutableListOf<Pair<CacheType, KRunnable>>()
 
-fun <P, P2, P3, R> memoize(func: KTriFunc<P, P2, P3, R>, cacheType: CacheType): KTriFunc<P,  P2, P3, R> {
+
+fun <P, P2, P3, R> memoize(cacheType: CacheType, func: KTriFunc<P, P2, P3, R>): KTriFunc<P,  P2, P3, R> {
     val memoized = object : KTriFunc<P, P2, P3, R> {
         var cache: ConcurrentHashMap<Triple<P, P2, P3>, R> = ConcurrentHashMap()
 
@@ -22,6 +23,10 @@ fun <P, P2, P3, R> memoize(func: KTriFunc<P, P2, P3, R>, cacheType: CacheType): 
     })
 
     return memoized
+}
+
+fun addCacheInvalidationTarget(cacheType: CacheType, invalidate: KRunnable) {
+    onInvalidateCaches += cacheType to invalidate
 }
 
 fun invalidateCaches(cacheType: CacheType) {

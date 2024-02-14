@@ -1,5 +1,5 @@
 @file:Suppress("unused")
-package net.wiredtomato.perception.systems.math
+package net.wiredtomato.perception.systems.math.swizzling
 
 import org.joml.Vector2f
 import org.joml.Vector2i

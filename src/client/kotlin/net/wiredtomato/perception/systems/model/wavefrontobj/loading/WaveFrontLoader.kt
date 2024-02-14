@@ -1,7 +1,7 @@
 package net.wiredtomato.perception.systems.model.wavefrontobj.loading
 
 import com.mojang.blaze3d.vertex.VertexFormat.DrawMode
-import net.wiredtomato.perception.systems.math.xy
+import net.wiredtomato.perception.systems.math.swizzling.xy
 import net.wiredtomato.perception.systems.rendering.shapes.Quad
 import net.wiredtomato.perception.systems.rendering.shapes.Triangle
 import net.wiredtomato.perception.systems.rendering.shapes.geometry.DrawableGeometricShape

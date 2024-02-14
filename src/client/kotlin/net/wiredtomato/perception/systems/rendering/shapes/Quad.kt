@@ -3,9 +3,9 @@ package net.wiredtomato.perception.systems.rendering.shapes
 import com.mojang.blaze3d.vertex.VertexConsumer
 import net.minecraft.client.util.math.MatrixStack
 import net.wiredtomato.perception.systems.color.RGBA
-import net.wiredtomato.perception.systems.math.u
-import net.wiredtomato.perception.systems.math.v
-import net.wiredtomato.perception.systems.math.xy
+import net.wiredtomato.perception.systems.math.vector.u
+import net.wiredtomato.perception.systems.math.vector.v
+import net.wiredtomato.perception.systems.math.swizzling.xy
 import net.wiredtomato.perception.systems.rendering.shapes.geometry.GeometricQuad
 import net.wiredtomato.perception.systems.rendering.shapes.geometry.GeometricTriangle
 import net.wiredtomato.perception.systems.rendering.util.VertexPlacer

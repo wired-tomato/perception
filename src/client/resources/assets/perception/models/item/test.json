@@ -1,3 +1,9 @@
 {
-  "parent": "minecraft:stick"
+  "perception:obj": 1,
+  "parent": "minecraft:item/handheld",
+  "model": "perception:models/item/test.obj",
+  "automaticCulling": false,
+  "textures": {
+    "0": "perception:item/test"
+  }
 }

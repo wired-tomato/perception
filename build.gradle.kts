@@ -24,11 +24,10 @@ loom {
     splitEnvironmentSourceSets()
 
     accessWidenerPath = file("src/main/resources/perception.accesswidener")
-
     mods {
         create("perception") {
-            sourceSet(sourceSets["main"])
             sourceSet(sourceSets["client"])
+            sourceSet(sourceSets["main"])
         }
     }
 }
